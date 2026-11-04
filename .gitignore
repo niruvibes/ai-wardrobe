@@ -1,0 +1,12 @@
+/target/
+/data/
+/test-data/
+/dist/
+*.log
+/.venv/
+/.venv-gpu/
+/models/
+__pycache__/
+*.pyc
+/docs/camera.md
+

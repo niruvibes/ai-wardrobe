@@ -1,0 +1,6 @@
+# AMD-capable Windows worker; the CPU environment is retained separately.
+Pillow==12.0.0
+rembg==2.0.67
+onnxruntime-directml==1.24.4
+requests==2.34.2
+huggingface-hub==0.36.2

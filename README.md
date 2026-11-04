@@ -1,0 +1,131 @@
+# Wardrobe
+
+A local Rust desktop app that suggests complete outfits from your own clothes, using the weather during your outing, occasion, personal preferences, feedback and wear history. Temperatures are always Celsius.
+
+## Start the app
+
+On Windows, close any older instance and open **dist/Wardrobe-0.3.exe**. The versioned executable avoids interrupting an older instance with unsaved edits. Existing wardrobes are retained and upgraded automatically; new wardrobes start empty. Older builds cannot reopen the upgraded database, and a stale older instance cannot silently discard the new item metadata. No account or API key is needed for personal weather or local photo analysis; demonstration clothes are kept separately.
+
+To run from source, install a stable Rust toolchain and the Microsoft C++ build tools, then run:
+
+```powershell
+cargo run --release
+```
+
+By default, your database and managed photos are in **%LOCALAPPDATA%\Wardrobe**. To use a portable folder or an isolated test wardrobe:
+
+```powershell
+cargo run -- --data-dir .\data
+```
+
+`WARDROBE_DATA_DIR` also sets the data folder. A `--data-dir` argument takes precedence. Keep the database and its `media` folder together. Use the in-app backup feature instead of copying a live SQLite database.
+
+## First use
+
+1. Open **My wardrobe → Add item** and choose a photo. The app automatically generates its name, category, colours, warmth, formality, seasons, material appearance, fit, visible details and brief description, then removes the background and crops the item. Review the estimates before saving. Photos remain optional. **Add another** retains basic fields for fast manual entry; **Add photos in bulk** queues multiple photos for automatic analysis and review before each save.
+2. Add shoes and either a top and bottom or a dress / one-piece. Add mid-layers and outerwear as you need them. Use the availability dropdown when something goes into the wash or storage.
+3. Open **Plan an outfit**, enter departure and return dates and times, choose an occasion and estimate time outdoors. Select walking or accessories as appropriate. Dates use `YYYY-MM-DD`; times use 24-hour `HH:MM`. Separate return dates support overnight outings of up to 48 hours.
+4. Search for a city, choose the correct result and fetch its hourly forecast. Times are local to that destination. Alternatively, enter manual actual and feels-like temperature ranges, rain probability, precipitation and wind.
+5. Choose **Generate outfits**. Up to three complete combinations appear, with explanations, a score breakdown and any gaps in weather protection. A match score is a relative ranking, not a probability or guarantee of comfort.
+6. **Lock** pieces to keep them, **Swap** one while retaining the rest, or **Exclude** a piece for this planning session. **Build around** in the wardrobe starts with a particular item. **Other options** adds limited variation to the ranking.
+7. Favourite individual clothes or whole outfits. **Wear this** records an actual wear, with its date and optional notes. It does not automatically put clothes into the wash. Saved outfits and history can be used as starting points for another outing.
+8. Save colour, fit, style and comfort preferences. Use comma-separated tags on clothes and in preferences. Start with neutral style ratings of 2.5 / 5 while deciding what you like.
+
+## Clothing catalogue
+
+Each item supports an original photo and processed cutout, category, colour(s), warmth, formality, rain protection, wind protection, walking comfort, availability, favourites and optional brand, size, fabric, pattern, fit, seasons, style tags, visible details, a brief description and notes. Categories cover tops, bottoms, one-pieces, mid-layers, outerwear, shoes and accessories. The preview's file loader is enabled for managed local photos.
+
+Rain protection distinguishes **not recorded**, **not rainproof**, **water resistant** and **waterproof**. Unknown protection is never treated as waterproof. Warmth runs from 0 (very light) to 5 (insulating); formality runs from 1 (casual) to 5 (formal). Walking comfort is 1–5. These are subjective starting ratings, so adjust them to your experience.
+
+Search matches words across names, colours and all searchable details, including prefixes. Combine it with category, availability, waterproof and favourites filters. Archive retired pieces to preserve historical records. The catalogue uses SQLite full-text search and has been tested with 150 items.
+
+## Automatic photo imports
+
+The desktop app and database remain in Rust. A supervised local Python worker runs **Qwen3-VL-2B-Instruct** for image understanding and **BiRefNet General Lite** through rembg/ONNX Runtime for background removal. Python supplies the model ecosystem, while Rust manages the UI, data validation, requests and cancellation. Photos are never sent to a hosted model.
+
+The GPU environment and weights are installed in this project. On another Windows x64 computer, keep the packaged `vision/` folder next to the executable, install Python 3.13, and choose **Preferences → Set up GPU processing**. Setup creates a separate `.venv-gpu`, installs locked dependencies, and downloads about 4–5 GB of models and the Vulkan runtime. The existing `.venv` CPU environment is retained. Model files live in `models/`; subsequent analysis uses local weights. `models/gpu-model.json` records the official F16 Qwen GGUF revision and pinned llama.cpp runtime. Downloads are checked against fixed SHA-256 hashes before use. Keep `.venv-gpu`, `models`, `vision` and the executable under the same installation folder, or set `WARDROBE_VISION_ROOT` to the project folder. Virtual environments should be recreated on another computer. `WARDROBE_MODELS_DIR` can move the model cache.
+
+Analysis runs in the background, with progress and cancellation. **Preferences → Processing device** offers Automatic, GPU and CPU. Automatic uses Vulkan recognition and CPU masking: the two-photo RX 7800 XT check took **25 and 17 seconds**, compared with around 100 seconds for CPU processing in the earlier comparison. GPU mode uses Vulkan plus DirectML and took **32 and 28 seconds** after a competing game was closed. These are two samples, not guaranteed timings. First use can take longer while models and driver caches initialise; games and other GPU workloads affect performance. Full F16 weights preserve the tested image recognition quality. Automatic reports recognition failures and retries on CPU; GPU mode reports an error if acceleration cannot activate. CPU mode keeps both inference stages off the GPU.
+
+Results show the actual recognition device, masking backend, runtime and any fallback reason. Models are reused between photos and released after five idle minutes, on cancellation or app exit; **Release photo-processing memory** unloads them sooner. Rust supervises the worker and native inference descendants together. Photos travel only to a private authenticated loopback helper, never a remote inference service. You can keep editing while processing runs; your edits take precedence. **Skip automation** keeps manual entry available.
+
+Use **Auto-fill & remove background** on an existing item to analyse its original photo again. **Show original photo** compares the source and cutout. Originals retain their encoded pixels, EXIF and embedded colour profile; the worker converts its working copy to sRGB, respects EXIF orientation, optionally balances colour, removes the background and produces a cropped transparent PNG. Processing copies are limited in size; the original file is unchanged. Use one clearly visible item against a contrasting background. The mask can need review around hangers, objects touching the item, fine straps, fur or photos of worn clothing.
+
+Names and descriptions identify visible details such as tree embroidery, faded denim, suede-like texture, wide legs and loose fits. Extracted fields are searchable and saved in outfit snapshots. Outfit preference matching consumes the description, material, pattern, fit, style tags and visible details, so preferences such as `embroidery`, `suede` or `baggy` affect suggestions. Patterns also affect the existing combination rules. Every result records its model, revision, pipeline version, source hash and uncertainty notes. Old clothing records and backups remain readable through defaults for the added JSON fields.
+
+Photo estimates do not establish actual fibre composition, insulation or weather protection. Review warmth, formality and seasons against the item. Rain/wind protection, brand, size, walking comfort and personal style ratings are never silently inferred. Both the description and detected details are editable. A failed, cancelled or superseded request does not overwrite the editor or the original image.
+
+### Consistent colours from phone photos
+
+For your Galaxy S26 Ultra, see the [capture and RAW-export guide](docs/galaxy-s26-ultra-photo-guide.md). RAW/DNG import is not implemented: export an sRGB JPEG or PNG after adjusting white balance, or use a JPEG with the app's neutral-reference tool.
+
+Use soft, consistent lighting, avoid mixing daylight and room lamps, avoid filters, and keep white balance/exposure fixed if the camera app supports it. Put a photographic neutral-grey or white-balance card beside the garment under the same light. Ordinary A4 paper is an approximate fallback: it may not be neutral, may contain optical brighteners, and can clip to featureless white. See [X-Rite's white-balance guidance](https://www.xrite.com/-/media/xrite/files/manuals_and_userguides/c/o/colorcheckerpassport_user_manual_en.pdfpage) and [Calibrite's neutral-reference explanation](https://calibrite.com/us/why-you-need-to-calibrate/?noredirect=en-US).
+
+In the item editor, choose **Use a neutral colour reference…**, click the plain middle of the card in the original photo, then choose **Use reference & analyse**. The app neutralises the selected patch in linear sRGB before recognition and segmentation. It rejects overexposed, very dark, transparent, highly uneven or implausibly tinted samples. This corrects a colour cast, not the phone's full colour response or mixed lighting. It does not guess that part of the garment is white. Reference coordinates are retained with the analysis; the original remains unchanged. A multi-patch colour chart and camera profile would be needed for more demanding colour calibration.
+
+## How suggestions evolve
+
+The first algorithm is an explainable rule system, designed to work before a personal style guide exists:
+
+- Availability, archival status, exclusions and locks are hard constraints.
+- Complete outfits require shoes and either top + bottom or a one-piece. Mid-layers and outerwear are optional, with warmth and rain affecting their suitability.
+- Weather considers the coldest and warmest feels-like hours, removable layers, rain, wind, indoor time and activity. Missing protection produces a visible warning. Formal and exercise suitability also produce warnings when relevant.
+- Style combines per-item affinity, simple neutral/colour/pattern rules and feedback about combinations. Preferences can match generated visual descriptions and details, and broad colour preferences such as `blue` match `light blue`. Favourites receive a small preference boost. You can change all five scoring weights.
+- Recent wears reduce variety scores over your chosen repeat window. Shoes, outerwear and accessories receive a smaller repeat penalty.
+- The latest feedback for each combination guides learning; all feedback events remain stored. Style feedback affects combinations. Warm/cold feedback affects similar weather and outdoor exposure. Formality feedback is tied to occasion.
+- Generation uses a bounded beam search instead of enumerating every possible combination, and selects diverse options from the ranked candidates. It is a heuristic, not an exhaustive search for a mathematically optimal outfit.
+
+**Save preferences** makes changes active. Unsaved preference edits and loaded old revisions do not affect generation until saved. Each save appends a scoring/preferences revision. Item affinity changes have their own revision history, separate from clothing facts. Saved outfits, wear events and feedback retain the original clothing snapshot, preferences, scoring weights, algorithm version, component scores and weather context. You can change scoring without overwriting the evidence behind previous results.
+
+**Style guide:** reference images and notes can be stored now. They are reference material, not automatically interpreted by a vision model. Use tags, ratings and preferences to express their influence until image interpretation is added. No clothing photos or guide images are uploaded.
+
+## Weather and offline use
+
+Weather and city search use [Open-Meteo's forecast API](https://open-meteo.com/en/docs) and [geocoding API](https://open-meteo.com/en/docs/geocoding-api). The app explicitly requests Celsius, km/h and millimetres. It includes every hourly interval intersecting the outing, including partial first/last hours. Rain probability and wind use the maximum over that window; precipitation totals conservatively include those entire intersecting hours.
+
+Forecasts cover seven days, are cached locally and must be less than three hours old for generation. Partial, missing, stale or mismatched forecasts are rejected with an explanation. Ambiguous daylight-saving hours require manual conditions. Manual conditions keep outfit planning available without a network connection. Networking and outfit generation run off the interface thread.
+
+Open-Meteo weather is attributed in the app under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Check the provider's terms before turning this personal app into a commercial product. City queries and forecast coordinates are sent to Open-Meteo; clothing, photos, preferences and history stay local. One-time photo setup contacts PyPI, Hugging Face and the rembg model release host to download libraries and weights. There is no telemetry or cloud account.
+
+## Back up and restore
+
+**Preferences → Export a complete backup** writes a new folder containing `wardrobe.json` and `media/`. It includes all clothing, original photos, processed cutouts, descriptions, visual-analysis provenance, scoring/preferences revisions, item rating revisions, outfit favourites, feedback and wear history. Downloadable model weights, tool setup state, weather caches and the current outing draft are not exported.
+
+**Restore from backup** validates the backup, checks required photos and asks before replacing records. A recovery backup is made under the data folder's `recovery/` directory first. Database replacement is transactional, so a failed restore does not partially replace your catalogue. Existing media files are retained, and colliding photo names with different content are rejected.
+
+## Development and verification
+
+Stack: Rust 2024, egui/eframe desktop UI, SQLite via bundled rusqlite, serde JSON snapshots, reqwest with rustls, native file dialogs and managed PNG/JPEG/WebP images; Python 3.13, llama.cpp Vulkan, Pillow and rembg/ONNX Runtime DirectML for photo analysis. The older PyTorch environment remains a legacy CPU option. Exact versions are recorded in `Cargo.lock`, `vision/requirements.gpu.lock.txt` and `vision/requirements.lock.txt`. Schema migrations are in `migrations/`; schema upgrades reject databases from newer app versions.
+
+```powershell
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo build --locked --release
+.\.venv-gpu\Scripts\python.exe -m unittest discover -s vision -p test_*.py -v
+```
+
+Tests cover 150-item persistence and ranking, full-text searches, availability, locks, swaps, one-pieces, waterproofing, cold-weather layers, wear history, feedback, evolving scores, input validation, precise hourly windows, stale/malformed forecasts, managed photos, transactional backup restoration and app control flows. App tests run egui directly without controlling the Windows desktop.
+
+Optional live integration check:
+
+```powershell
+cargo run --example check_weather -- Sydney
+```
+
+Create a separate demonstration wardrobe with 112 pieces (requires an empty, explicit folder):
+
+```powershell
+cargo run --example seed_demo -- --data-dir .\test-data\demo
+cargo run -- --data-dir .\test-data\demo
+```
+
+Live end-to-end photo check, using the same worker and database path as the app:
+
+```powershell
+cargo run --example analyse_photos -- --data-dir .\test-data\photo-check C:\path\to\garment.jpg
+```
+
+Models: [Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct), [rembg](https://github.com/danielgatis/rembg). The vision model uses Apache-2.0; rembg uses MIT. Model weights are downloaded separately, not checked into the source project.
+
+Current limits: photo predictions and cutout edges need review; CPU photo analysis takes time; style ranking starts with simple rules; style-guide reference images are stored but not automatically interpreted; warmth ratings are subjective; wear timestamps use the computer's local time, so travel across timezones may require adjusting recorded wear times. The interface is intentionally ready for iteration based on your feedback. Windows is the verified build target; cross-platform support is not yet verified.

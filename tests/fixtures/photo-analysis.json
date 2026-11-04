@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "name": "Cream embroidered fleece pullover",
+    "category": "Outerwear",
+    "colors": ["cream", "burgundy"],
+    "warmth": 3.5,
+    "formality": 1.5,
+    "seasons": ["autumn", "winter"],
+    "fabric": "fleece-like",
+    "pattern": "tree embroidery",
+    "fit": "relaxed",
+    "styles": ["casual", "embroidered"],
+    "details": ["Cherry blossom tree embroidery", "Quarter zip", "Soft pile texture"],
+    "description": "A cream fleece-like pullover with burgundy tree embroidery, a quarter zip and a relaxed silhouette.",
+    "uncertainties": ["Fibre composition requires checking the care label"],
+    "bbox": [100, 40, 930, 960],
+    "rotation_clockwise": 90
+  },
+  "model": "Qwen/Qwen3-VL-2B-Instruct",
+  "revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+  "pipeline": "wardrobe-photo/1",
+  "device": "cpu",
+  "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "width": 100,
+  "height": 120,
+  "elapsed_seconds": 90.0,
+  "color_reference": null
+}

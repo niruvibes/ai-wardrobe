@@ -1,0 +1,7 @@
+# Tested Python 3.13 environment; CPU backend works without CUDA.
+torch==2.9.1
+torchvision==0.24.1
+transformers==4.57.1
+accelerate==1.11.0
+Pillow==12.0.0
+rembg[cpu]==2.0.67
